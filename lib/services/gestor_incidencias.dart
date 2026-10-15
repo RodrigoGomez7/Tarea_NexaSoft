@@ -33,7 +33,8 @@ class GestorIncidencias {
     for (var i = 0; i < incidencias.length; i++) {
       if (incidencias[i].id == id) {
         incidencias[i].estado = estado;
-        break;
+        await datos.guardar(incidencias);
+        return;
       }
     }
   }
