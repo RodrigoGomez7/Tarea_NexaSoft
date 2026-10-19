@@ -52,12 +52,34 @@ class GestorIncidencias {
       }
     }
   }
+  
+  // FEAT-001: actualiza y guarda la prioridad de una incidencia.
+  Future<void> cambiarPrioridad(String id, String prioridad) async {
+    const prioridadesValidas = ['Baja', 'Media', 'Alta'];
+
+    if (!prioridadesValidas.contains(prioridad)) {
+      throw ArgumentError('La prioridad seleccionada no es válida.');
+    }
+
+    for (var i = 0; i < incidencias.length; i++) {
+      if (incidencias[i].id == id) {
+        incidencias[i].prioridad = prioridad;
+        await datos.guardar(incidencias);
+        return;
+      }
+    }
+
+    throw StateError('No se encontró la incidencia con ID $id.');
+  }
+
+
 
   Future<void> crear(
     String titulo,
     String descripcion,
     String cliente,
     String categoria,
+    String prioridad,
   ) async {
     final nuevo = Incidencia(
       id: 'INC-${DateTime.now().microsecondsSinceEpoch}',
@@ -66,12 +88,14 @@ class GestorIncidencias {
       cliente: cliente,
       categoria: categoria,
       estado: 'Pendiente',
+      prioridad: prioridad,
       fecha: DateTime.now().toIso8601String().split('T').first,
     );
 
     incidencias.insert(0, nuevo);
     await datos.guardar(incidencias);
   }
+
 
   Future<void> reiniciarDemo() async {
     await datos.restaurarDatosDeEjemplo();
