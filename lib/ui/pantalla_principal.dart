@@ -18,6 +18,22 @@ class _PantallaPrincipalState extends State<PantallaPrincipal> {
   bool cargando = true;
   String? error;
   String busqueda = '';
+  String estadoSeleccionado = 'Todos';
+  String prioridadSeleccionada = 'Todas';
+
+  static const List<String> estados = [
+    'Todos',
+    'Pendiente',
+    'En proceso',
+    'Resuelta',
+  ];
+
+  static const List<String> prioridades = [
+    'Todas',
+    'Baja',
+    'Media',
+    'Alta',
+  ];
 
   @override
   void initState() {
@@ -172,6 +188,30 @@ class _PantallaPrincipalState extends State<PantallaPrincipal> {
     }
   }
 
+  void limpiarFiltros() {
+    setState(() {
+      busqueda = '';
+      estadoSeleccionado = 'Todos';
+      prioridadSeleccionada = 'Todas';
+    });
+  }
+
+  List<Incidencia> obtenerIncidenciasFiltradas() {
+    // Primero se aplica la búsqueda existente.
+    final resultadoBusqueda = g.buscar(busqueda);
+
+    // Después se aplican ambos filtros a los resultados.
+    return resultadoBusqueda.where((item) {
+      final coincideEstado = estadoSeleccionado == 'Todos' ||
+          item.estado == estadoSeleccionado;
+
+      final coincidePrioridad = prioridadSeleccionada == 'Todas' ||
+          item.prioridad == prioridadSeleccionada;
+
+      return coincideEstado && coincidePrioridad;
+    }).toList();
+  }
+
   Widget etiqueta(String texto, Color color, {IconData? icono}) {
     return Chip(
       avatar: icono == null
@@ -195,7 +235,7 @@ class _PantallaPrincipalState extends State<PantallaPrincipal> {
 
   @override
   Widget build(BuildContext context) {
-    final items = g.buscar(busqueda);
+    final items = obtenerIncidenciasFiltradas();
 
     return Scaffold(
       appBar: AppBar(
@@ -268,43 +308,131 @@ class _PantallaPrincipalState extends State<PantallaPrincipal> {
                             ],
                           ),
                         ),
+
+                        // Campo de búsqueda.
                         Padding(
                           padding: const EdgeInsets.symmetric(
                             horizontal: 17,
                             vertical: 5,
                           ),
                           child: TextField(
-                            decoration: const InputDecoration(
+                            decoration: InputDecoration(
                               labelText: 'Buscar incidencias',
                               hintText: 'Ejemplo: WiFi, correo, pantalla',
-                              prefixIcon: Icon(Icons.search),
-                              border: OutlineInputBorder(),
+                              prefixIcon: const Icon(Icons.search),
+                              suffixIcon: busqueda.isEmpty
+                                  ? null
+                                  : IconButton(
+                                      tooltip: 'Limpiar búsqueda',
+                                      icon: const Icon(Icons.close),
+                                      onPressed: () {
+                                        setState(() => busqueda = '');
+                                      },
+                                    ),
+                              border: const OutlineInputBorder(),
                             ),
                             onChanged: (texto) {
                               setState(() => busqueda = texto);
                             },
                           ),
                         ),
+
+                        // Filtro por estado.
                         Padding(
-                          padding: const EdgeInsets.symmetric(
-                            horizontal: 20,
-                            vertical: 4,
+                          padding: const EdgeInsets.fromLTRB(
+                            17, 8, 17, 0,
                           ),
-                          child: Align(
-                            alignment: Alignment.centerLeft,
-                            child: Text(
-                              '${items.length} registros',
-                              style: const TextStyle(
-                                color: Colors.black54,
-                              ),
+                          child: DropdownButtonFormField<String>(
+                            initialValue: estadoSeleccionado,
+                            decoration: const InputDecoration(
+                              labelText: 'Filtrar por estado',
+                              prefixIcon: Icon(Icons.filter_list),
+                              border: OutlineInputBorder(),
                             ),
+                            items: estados.map((estado) {
+                              return DropdownMenuItem<String>(
+                                value: estado,
+                                child: Text(estado),
+                              );
+                            }).toList(),
+                            onChanged: (valor) {
+                              if (valor != null) {
+                                setState(() {
+                                  estadoSeleccionado = valor;
+                                });
+                              }
+                            },
                           ),
                         ),
+
+                        // Filtro por prioridad.
+                        Padding(
+                          padding: const EdgeInsets.fromLTRB(
+                            17, 8, 17, 0,
+                          ),
+                          child: DropdownButtonFormField<String>(
+                            initialValue: prioridadSeleccionada,
+                            decoration: const InputDecoration(
+                              labelText: 'Filtrar por prioridad',
+                              prefixIcon: Icon(Icons.flag_outlined),
+                              border: OutlineInputBorder(),
+                            ),
+                            items: prioridades.map((prioridad) {
+                              return DropdownMenuItem<String>(
+                                value: prioridad,
+                                child: Text(prioridad),
+                              );
+                            }).toList(),
+                            onChanged: (valor) {
+                              if (valor != null) {
+                                setState(() {
+                                  prioridadSeleccionada = valor;
+                                });
+                              }
+                            },
+                          ),
+                        ),
+
+                        // Resultados y botón para limpiar todo.
+                        Padding(
+                          padding: const EdgeInsets.fromLTRB(
+                            20, 8, 12, 4,
+                          ),
+                          child: Row(
+                            children: [
+                              Expanded(
+                                child: Text(
+                                  '${items.length} '
+                                  '${items.length == 1 ? 'resultado' : 'resultados'}',
+                                  style: const TextStyle(
+                                    color: Colors.black54,
+                                  ),
+                                ),
+                              ),
+                              TextButton.icon(
+                                onPressed: busqueda.isEmpty &&
+                                        estadoSeleccionado == 'Todos' &&
+                                        prioridadSeleccionada == 'Todas'
+                                    ? null
+                                    : limpiarFiltros,
+                                icon: const Icon(Icons.clear_all),
+                                label: const Text('Limpiar filtros'),
+                              ),
+                            ],
+                          ),
+                        ),
+
+                        // Lista o mensaje cuando no hay coincidencias.
                         Expanded(
                           child: items.isEmpty
                               ? const Center(
-                                  child: Text(
-                                    'No se encontraron incidencias',
+                                  child: Padding(
+                                    padding: EdgeInsets.all(24),
+                                    child: Text(
+                                      'No se encontraron incidencias '
+                                      'con los criterios seleccionados.',
+                                      textAlign: TextAlign.center,
+                                    ),
                                   ),
                                 )
                               : ListView.builder(
@@ -334,14 +462,15 @@ class _PantallaPrincipalState extends State<PantallaPrincipal> {
                                           ),
                                         ),
                                         subtitle: Padding(
-                                          padding:
-                                              const EdgeInsets.only(top: 8),
+                                          padding: const EdgeInsets.only(
+                                            top: 8,
+                                          ),
                                           child: Column(
                                             crossAxisAlignment:
                                                 CrossAxisAlignment.start,
                                             children: [
                                               Text(
-                                                '${item.id}  ·  '
+                                                '${item.id} · '
                                                 '${item.cliente}',
                                               ),
                                               const SizedBox(height: 8),
